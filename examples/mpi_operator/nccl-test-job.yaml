@@ -1,0 +1,62 @@
+apiVersion: kubeflow.org/v2beta1
+kind: MPIJob
+metadata:
+  name: nccl-test-dranet-1gpu-1nic
+spec:
+  slotsPerWorker: 1 # 1 MPI rank per worker Pod
+  mpiReplicaSpecs:
+    Launcher:
+      replicas: 1
+      template:
+        spec:
+          containers:
+          - image: mpioperator/openmpi:v0.6.0
+            name: mpi-launcher
+            command: ["/bin/bash", "-c"]
+            args:
+            - |
+              set -ex
+              mpirun \
+                --allow-run-as-root \
+                --prefix /opt/openmpi \
+                -np 2 \
+                -bind-to none \
+                -map-by slot \
+                -mca routed direct \
+                -x LD_LIBRARY_PATH=/usr/local/nvidia/lib64 \
+                bash -c \
+                  "source /usr/local/gib/scripts/set_nccl_env.sh; \
+                  /usr/local/bin/all_reduce_perf \
+                    -g 1 -b 1K -e 8G -f 2 \
+                    -w 5 -n 20;"
+            securityContext:
+              capabilities:
+                add: ["IPC_LOCK"]
+    Worker:
+      replicas: 2
+      template:
+        spec:
+          resourceClaims:
+          - name: worker-rdma-nic
+            resourceClaimTemplateName: mpi-worker-rdma-nic-template
+          containers:
+          - image: ghcr.io/google/dranet-rdma-perftest:stable
+            name: mpi-worker
+            securityContext:
+              capabilities:
+                add: ["IPC_LOCK"]
+            resources:
+              limits:
+                nvidia.com/gpu: 1 # Each worker gets 1 GPU
+            volumeMounts:
+              - name: library-dir-host
+                mountPath: /usr/local/nvidia
+              - name: gib
+                mountPath: /usr/local/gib
+          volumes:
+            - name: library-dir-host
+              hostPath:
+                path: /home/kubernetes/bin/nvidia
+            - name: gib
+              hostPath:
+                path: /home/kubernetes/bin/gib
